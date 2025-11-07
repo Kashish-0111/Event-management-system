@@ -21,7 +21,7 @@ const generateAccessAndRefreshTokens=async (userId) => {
 
 const SingupUser= asyncHandler(async(req,res)=>{
     try {
-       const {name,email,password}= req.body;
+       const {username,email,password}= req.body;
 
        // check if user already exsist
 
@@ -29,7 +29,7 @@ const SingupUser= asyncHandler(async(req,res)=>{
        if(existingUser) throw new ApiError(409, "User already exsist")
 
         // create new user
-        const newUser = await User.create({ name, email, password });
+        const newUser = await User.create({ username, email, password });
        const createdUser = await User.findById(newUser._id).select("-password -_createdAt");
         // const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(createdUser._id);
 
@@ -39,7 +39,7 @@ const SingupUser= asyncHandler(async(req,res)=>{
        
 
         return res.status(201).json(
-            new ApiResponse(200, "User registered successfully")
+            new ApiResponse(201, "User registered successfully")
         )
  
     } catch (error) {
@@ -56,14 +56,14 @@ const loginUser= asyncHandler(async(req,res)=>{
     try {
         const { email, password } = req.body;
 
-     if(!email ) throw ApiError(400,"Email is required")
+     if(!email ) throw  new ApiError(400,"Email is required")
     // 1. Check if user exists
     const user = await User.findOne({ email });
-    if (!user) throw ApiError("User does not exsist", 404);
+    if (!user) throw new  ApiError(404,"User does not exsist");
 
     // 2. Check password
     const isValid = await user.isPasswordCorrect(password);
-    if (!isValid) throw ApiError("Incorrect password", 401);
+    if (!isValid) throw new ApiError("Incorrect password", 401);
 
     // 3. Generate tokens
     const {accessToken,refreshToken}= await generateAccessAndRefreshTokens(user._id)
