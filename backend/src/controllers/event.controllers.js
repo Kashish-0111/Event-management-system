@@ -2,6 +2,7 @@ import { asyncHandler } from "../utils/asyncHandler";
 import { ApiError } from "../utils/ApiError";
 import { ApiResponse } from "../utils/ApiResponse";
 import { Event } from "../models/event.model";
+import { EventRegister } from "../models/eventregister.model.js";
 
 const getAllEvents = asyncHandler(async (req,res) => {
     const page= Number(req.query.page)||1;
@@ -54,11 +55,90 @@ const deleteEvent = asyncHandler(async (req,res)=>{
         new ApiResponse(200,"Event deleted successfully")
      )
 } )
+
+
+const getEvents= asyncHandler(async(req,res)=>{
+      const { search = "", page = 1, limit = 10 } = req.query;
+
+    const query = {
+      $or: [
+        { title: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+      ],
+    };
+    const skip= (parseInt(page) - 1) * parseInt(limit);
+     const events = await Event.find(query)
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    const total = await Event.countDocuments(query);
+    return res.status(200).json(
+      new ApiResponse(200, "Events Fetched Successfully",{
+        events,
+        totalEvents: total,
+        totalPages: Math.ceil(total / limit),
+        currentPage: parseInt(page),
+      })
+    )
+  
+  })
+  
+  const registerForEvent = asyncHandler(async (req, res) => {
+  const { eventId } = req.body;
+  const userId = req.user._id;
+
+  //  Check if already registered
+  const alreadyRegistered = await EventRegister.findOne({
+    user: userId,
+    event: eventId,
+    status: "registered", // optional: ignore cancelled ones
+  });
+
+  if (alreadyRegistered) {
+    return res.status(400).json(
+      new ApiResponse(400, "Already Registered")
+    );
+  }
+
+  //  Proceed with registration
+  const registration = await EventRegister .create({
+    user: userId,
+    event: eventId,
+  });
+
+  return res.status(201).json(
+    new ApiResponse(201, "Event registration successful", registration)
+  );
+});
+
+const getAllRegistrations = asyncHandler(async (req, res) => {
+  const registrations = await EventRegister.find()
+    .populate("user", "name email")
+    .populate("event", "title date");
+
+  return res.status(200).json(
+    new ApiResponse(200, "All registrations fetched", registrations)
+  );
+});
+
+
+
+
+
+ 
+
+
+    
+
     
 export {
     getAllEvents,
     getEventById,
     createEvent,
     updateEvent,
-    deleteEvent
+    deleteEvent,
+    getEvents,
+    registerForEvent,
+    getAllRegistrations 
+
 }
