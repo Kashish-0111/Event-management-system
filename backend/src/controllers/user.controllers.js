@@ -2,7 +2,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { User } from "../models/user.model.js";
-
+ import sendEmail from "../utils/sendEmail.utils.js";
 const generateAccessAndRefreshTokens=async (userId) => {
     try {
         const user = await User.findById(userId)
@@ -35,6 +35,12 @@ const SingupUser= asyncHandler(async(req,res)=>{
 
 
         if(!createdUser) throw new ApiError(500, "Unable to create user please try again Later")
+           //  Fire-and-forget email trigger
+       sendEmail({
+      to: createdUser.email,
+      subject: "Welcome to Event System 🎉",
+      html: `<h2>Hi ${createdUser.username},</h2><p>Your account has been created successfully. We're excited to have you onboard!</p>`
+    });
 
        
 

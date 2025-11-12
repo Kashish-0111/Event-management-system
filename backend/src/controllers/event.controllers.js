@@ -3,6 +3,8 @@ import { ApiError } from "../utils/ApiError";
 import { ApiResponse } from "../utils/ApiResponse";
 import { Event } from "../models/event.model";
 import { EventRegister } from "../models/eventregister.model.js";
+import {User} from "../models/user.model.js";
+import sendEmail from "../utils/sendEmail.utils.js";
 
 const getAllEvents = asyncHandler(async (req,res) => {
     const page= Number(req.query.page)||1;
@@ -106,6 +108,17 @@ const getEvents= asyncHandler(async(req,res)=>{
     event: eventId,
   });
 
+   //  Fetch event & user details
+  const event = await Event.findById(eventId);
+  const user = await User.findById(userId);
+
+  //  Fire-and-forget email
+  sendEmail({
+    to: user.email,
+    subject: `Registered for ${event.title}`,
+    html: `<h2>Hi ${user.username},</h2><p>You have successfully registered for <strong>${event.title}</strong> on ${event.date.toDateString()}.</p>`
+  });
+
   return res.status(201).json(
     new ApiResponse(201, "Event registration successful", registration)
   );
@@ -120,6 +133,8 @@ const getAllRegistrations = asyncHandler(async (req, res) => {
     new ApiResponse(200, "All registrations fetched", registrations)
   );
 });
+
+
 
 
 
