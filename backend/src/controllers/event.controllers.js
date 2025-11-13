@@ -5,6 +5,7 @@ import { Event } from "../models/event.model";
 import { EventRegister } from "../models/eventregister.model.js";
 import {User} from "../models/user.model.js";
 import sendEmail from "../utils/sendEmail.utils.js";
+import { uploadOnCloudinary } from "../utils/cloudinary.js";
 
 const getAllEvents = asyncHandler(async (req,res) => {
     const page= Number(req.query.page)||1;
@@ -33,11 +34,20 @@ const getEventById= asyncHandler(async(req,res)=>{
 })
 
 const createEvent= asyncHandler(async (req,res) => {
+   let imageUrl = "";
+  if (req.file?.path) {
+    const cloudinaryResult = await uploadOnCloudinary(req.file.path);
+    if (cloudinaryResult) {
+      imageUrl = cloudinaryResult.secure_url;
+    }
+  }
      const event = await Event.create({
     ...req.body,
+     imageUrl,
     createdBy: req.user._id
   });
     if(!event) throw new ApiError(500,"Unable to create event please try again later")
+      
         return res.status(201).json(
         new ApiResponse(201,"Event created successfully ",{event}))
 })

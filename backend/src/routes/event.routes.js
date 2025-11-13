@@ -12,6 +12,8 @@ import { verifyJWT } from "../middleswares/auth.middleware.js";
 
 import {isAdmin} from "../middleswares/role.middleware.js"
 
+import { upload } from "../middleswares/multer.middleware.js";
+
 const router = Router();
 
 router.route("/").get(getAllEvents)
@@ -22,5 +24,8 @@ router.route("/").post( verifyJWT,isAdmin,createEvent)
 router.route("/:id").put(verifyJWT,isAdmin,updateEvent)
 
 router.route("/:id").delete(verifyJWT,isAdmin,deleteEvent)
+router
+  .route("/create")
+  .post(verifyJWT, isAdmin, upload.single("image"), createEvent);
 
 export  default router;

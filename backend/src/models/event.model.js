@@ -19,6 +19,7 @@ const eventSchema= new mongoose.Schema({
     }, 
       image:{
         type:String,
+        required:false
       } ,// URL or placeholder
     createdBy: { 
         type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true 
