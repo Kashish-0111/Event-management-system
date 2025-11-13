@@ -4,11 +4,10 @@ import {
     getEventById,
     createEvent,
     updateEvent,
-    deleteEvent
+    deleteEvent,registerForEvent,
+        getAllRegistrations 
 } from "../controllers/event.controllers.js";
 import { verifyJWT } from '../middleswares/auth.middleware.js';
-
-import { verifyJWT } from "../middleswares/auth.middleware.js";
 
 import {isAdmin} from "../middleswares/role.middleware.js"
 
@@ -19,7 +18,6 @@ const router = Router();
 router.route("/").get(getAllEvents)
 router.route("/:id").get(getEventById)
 
-router.route("/").post( verifyJWT,isAdmin,createEvent)
 
 router.route("/:id").put(verifyJWT,isAdmin,updateEvent)
 
@@ -27,5 +25,11 @@ router.route("/:id").delete(verifyJWT,isAdmin,deleteEvent)
 router
   .route("/create")
   .post(verifyJWT, isAdmin, upload.single("image"), createEvent);
+
+  router.post("/:id/register", verifyJWT, registerForEvent);
+
+  router.get("/registrations", verifyJWT, isAdmin, getAllRegistrations);
+
+
 
 export  default router;
