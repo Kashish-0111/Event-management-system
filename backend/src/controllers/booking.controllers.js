@@ -55,4 +55,49 @@ const bookEvent = asyncHandler(async (req,res) => {
   );
 })
 
-export {bookEvent};
+
+ const getMyBookings = asyncHandler(async (req, res) => {
+  const bookings = await Booking.find({ user: req.user._id }).populate("event");
+  return res.json(new ApiResponse(200, bookings, "My bookings fetched"));
+});
+
+ const getBookingById = asyncHandler(async (req, res) => {
+  const booking = await Booking.findById(req.params.id).populate("event user");
+  if (!booking) throw new ApiError(404, "Booking not found");
+  return res.json(new ApiResponse(200, booking, "Booking details fetched"));
+});
+
+const cancelBooking = asyncHandler(async (req, res) => {
+  const booking = await Booking.findById(req.params.id);
+  if (!booking) throw new ApiError(404, "Booking not found");
+
+  if (booking.user.toString() !== req.user._id.toString() && req.user.role !== "admin") {
+    throw new ApiError(403, "Not authorized to cancel this booking");
+  }
+
+   booking.status = "cancelled";
+  await booking.save();
+
+  // Optional: seat increment
+  const event = await Event.findById(booking.event);
+  event.availableSeats += 1;
+  await event.save();
+
+  return res.json(new ApiResponse(200, booking, "Booking cancelled successfully"));
+});
+
+const getAllBookings = asyncHandler(async (req, res) => {
+  const bookings = await Booking.find().populate("event user");
+  return res.json(new ApiResponse(200, bookings, "All bookings fetched"));
+});
+
+
+export {
+  bookEvent,
+  getMyBookings,
+  getBookingById,
+  cancelBooking,
+  getAllBookings
+
+
+};
