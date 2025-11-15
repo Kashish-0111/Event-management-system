@@ -1,11 +1,11 @@
 import { bookEvent, getMyBookings,
   getBookingById,
   cancelBooking,
-  getAllBookings } from "../controllers/booking.controllers";
+  getAllBookings } from "../controllers/booking.controllers.js";
 
 import {Router} from "ëxpress";
-import { verifyJWT } from "../middleswares/auth.middleware";
-import { isAdmin } from "../middleswares/role.middleware";
+import { verifyJWT } from "../middleswares/auth.middleware.js";
+import { isAdmin } from "../middleswares/role.middleware.js";
 
 const router = Router();
 
