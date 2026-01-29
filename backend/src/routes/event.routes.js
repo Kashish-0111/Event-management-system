@@ -4,12 +4,11 @@ import {
     getEventById,
     createEvent,
     updateEvent,
-    deleteEvent,registerForEvent,
-        getAllRegistrations 
+    deleteEvent
 } from "../controllers/event.controllers.js";
 import { verifyJWT } from '../middleswares/auth.middleware.js';
 
-import {isAdmin} from "../middleswares/role.middleware.js"
+import {isOrganizer} from "../middleswares/role.middleware.js"
 
 import { upload } from "../middleswares/multer.middleware.js";
 
@@ -18,18 +17,15 @@ const router = Router();
 router.route("/").get(getAllEvents)
 router.route("/:id").get(getEventById)
 
+// Protected routes - Organizer only
+router.route("/")
+    .post(verifyJWT, isOrganizer, upload.single("image"), createEvent);  // Changed path from /create
 
-router.route("/:id").put(verifyJWT,isAdmin,updateEvent)
+router.route("/my-events")
+    .get(verifyJWT, isOrganizer, getMyEvents);  // Added - Get organizer's events
 
-router.route("/:id").delete(verifyJWT,isAdmin,deleteEvent)
-router
-  .route("/create")
-  .post(verifyJWT, isAdmin, upload.single("image"), createEvent);
+router.route("/:id")
+    .put(verifyJWT, isOrganizer, upload.single("image"), updateEvent)  // Added image upload
+    .delete(verifyJWT, isOrganizer, deleteEvent);
 
-  router.post("/:id/register", verifyJWT, registerForEvent);
-
-  router.get("/registrations", verifyJWT, isAdmin, getAllRegistrations);
-
-
-
-export  default router;
+export default router;

@@ -1,19 +1,15 @@
-import {Router} from 'express';
-import { loginUser, SingupUser ,logoutUser} from '../controllers/user.controllers.js';
-import { verifyJWT } from '../middleswares/auth.middleware.js';
-import { isAdmin } from '../middleswares/role.middleware.js';
-
+import { Router } from 'express';
+import { signupUser, loginUser, logoutUser, getCurrentUser } from '../controllers/user.controllers.js';
+import { verifyJWT } from '../middlewares/auth.middleware.js';
 
 const router = Router();
 
-router.route("/SingupUser").post(SingupUser)
+// Public routes
+router.route("/signup").post(signupUser);  // Changed from SingupUser
+router.route("/login").post(loginUser);
 
-router.route("/login").post(loginUser)
+// Protected routes
+router.route("/logout").post(verifyJWT, logoutUser);
+router.route("/me").get(verifyJWT, getCurrentUser);  // Added - Get current user info
 
-router.route("/logout").post(verifyJWT,logoutUser)
-
-router.post("/admin/dashboard", verifyJWT, isAdmin, (req, res) => {
-  res.status(200).json({ message: "Welcome Admin!" });
-});
-
-export  default router;
+export default router;
