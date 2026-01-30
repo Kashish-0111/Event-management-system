@@ -22,5 +22,12 @@ app.use(coikieParser());
 import userRouter from "./routes/user.routes.js";
 // routes declartion
 app.use("/api/v1/users",userRouter)
+// server.js
+import authRoutes from './routes/auth.routes.js';
+import eventRoutes from './routes/event.routes.js';
+import bookingRoutes from './routes/booking.routes.js';
 
+app.use('/api/auth', authRoutes);
+app.use('/api/events', eventRoutes);
+app.use('/api/bookings', bookingRoutes);
 export {app};

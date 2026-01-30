@@ -1,22 +1,29 @@
-import { bookEvent, getMyBookings,
-  getBookingById,
-  cancelBooking,
-  getAllBookings } from "../controllers/booking.controllers.js";
-
-import {Router} from "ëxpress";
-import { verifyJWT } from "../middleswares/auth.middleware.js";
-import { isAdmin } from "../middleswares/role.middleware.js";
+import { Router } from "express";  // Fixed typo
+import { 
+    createBooking,  // Changed from bookEvent
+    getMyBookings,
+    getBookingById,
+    cancelBooking,
+    getEventRegistrations  // Added - for organizers
+} from "../controllers/booking.controllers.js";
+import { verifyJWT } from "../middlewares/auth.middleware.js";
+import { isOrganizer } from "../middlewares/role.middleware.js";  // Added
 
 const router = Router();
 
-router.post("/bookings", verifyJWT, bookEvent);
-router.post("/bookings", verifyJWT, createBooking);
-router.get("/bookings/my", verifyJWT, getMyBookings);
-router.get("/bookings/:id", verifyJWT, getBookingById);
-router.delete("/bookings/:id", verifyJWT, cancelBooking);
-router.get("/admin/bookings",verifyJWT, isAdmin, getAllBookings);
+// User routes - Create and manage bookings
+router.route("/")
+    .post(verifyJWT, createBooking);  // POST /api/bookings - Create booking
 
+router.route("/my-bookings")
+    .get(verifyJWT, getMyBookings);  // GET /api/bookings/my-bookings - User's bookings
 
+router.route("/:id")
+    .get(verifyJWT, getBookingById)  // GET /api/bookings/:id - Single booking
+    .delete(verifyJWT, cancelBooking);  // DELETE /api/bookings/:id - Cancel booking
 
+// Organizer route - View event registrations
+router.route("/event/:eventId")
+    .get(verifyJWT, isOrganizer, getEventRegistrations);  // GET /api/bookings/event/:eventId
 
-export  default router;
+export default router;
