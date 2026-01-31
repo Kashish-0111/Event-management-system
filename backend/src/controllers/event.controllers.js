@@ -3,8 +3,8 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
-import Event from "../models/event.model.js";
-import Booking from "../models/booking.model.js";
+import {Event} from "../models/event.model.js";
+import {Booking} from "../models/booking.model.js";
 
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import mongoose from "mongoose";
@@ -267,70 +267,70 @@ const deleteEvent = asyncHandler(async (req, res) => {
 });
 
 // GET /api/events/my-events - Get events created by logged-in user
-// const getMyEvents = asyncHandler(async (req, res) => {
-//   const { page = 1, limit = 10 } = req.query;
+const getMyEvents = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 10 } = req.query;
 
-//   const skip = (parseInt(page) - 1) * parseInt(limit);
+  const skip = (parseInt(page) - 1) * parseInt(limit);
 
-//   const events = await Event.find({ createdBy: req.user._id })
-//     .sort({ createdAt: -1 })
-//     .skip(skip)
-//     .limit(parseInt(limit));
+  const events = await Event.find({ createdBy: req.user._id })
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(parseInt(limit));
 
-//   const totalEvents = await Event.countDocuments({ createdBy: req.user._id });
+  const totalEvents = await Event.countDocuments({ createdBy: req.user._id });
 
-//   // Get booking stats for each event
-//   const eventsWithStats = await Promise.all(
-//     events.map(async (event) => {
-//       const bookingStats = await Booking.aggregate([
-//         {
-//           $match: {
-//             event: event._id,
-//             status: "confirmed",
-//           },
-//         },
-//         {
-//           $group: {
-//             _id: null,
-//             totalBookings: { $sum: 1 },
-//             totalTickets: { $sum: "$tickets" },
-//             totalRevenue: { $sum: "$totalAmount" },
-//           },
-//         },
-//       ]);
+  // Get booking stats for each event
+  const eventsWithStats = await Promise.all(
+    events.map(async (event) => {
+      const bookingStats = await Booking.aggregate([
+        {
+          $match: {
+            event: event._id,
+            status: "confirmed",
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            totalBookings: { $sum: 1 },
+            totalTickets: { $sum: "$tickets" },
+            totalRevenue: { $sum: "$totalAmount" },
+          },
+        },
+      ]);
 
-//       const stats = bookingStats[0] || {
-//         totalBookings: 0,
-//         totalTickets: 0,
-//         totalRevenue: 0,
-//       };
+      const stats = bookingStats[0] || {
+        totalBookings: 0,
+        totalTickets: 0,
+        totalRevenue: 0,
+      };
 
-//       return {
-//         ...event.toObject(),
-//         bookingStats: {
-//           ...stats,
-//           availableSeats: event.totalSeats - stats.totalTickets,
-//         },
-//       };
-//     })
-//   );
+      return {
+        ...event.toObject(),
+        bookingStats: {
+          ...stats,
+          availableSeats: event.totalSeats - stats.totalTickets,
+        },
+      };
+    })
+  );
 
-//   return res.status(200).json(
-//     new ApiResponse(
-//       200,
-//       {
-//         events: eventsWithStats,
-//         pagination: {
-//           totalEvents,
-//           totalPages: Math.ceil(totalEvents / parseInt(limit)),
-//           currentPage: parseInt(page),
-//           limit: parseInt(limit),
-//         },
-//       },
-//       "Your events fetched successfully"
-//     )
-//   );
-// });
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        events: eventsWithStats,
+        pagination: {
+          totalEvents,
+          totalPages: Math.ceil(totalEvents / parseInt(limit)),
+          currentPage: parseInt(page),
+          limit: parseInt(limit),
+        },
+      },
+      "Your events fetched successfully"
+    )
+  );
+});
 
 // // GET /api/events/categories - Get all event categories
 // const getEventCategories = asyncHandler(async (req, res) => {
@@ -358,16 +358,7 @@ const deleteEvent = asyncHandler(async (req, res) => {
 //   );
 // });
 
-export {
-  getAllEvents,
-  getEventById,
-  createEvent,
-  updateEvent,
-  deleteEvent,
-  // getMyEvents,
-  // getEventCategories,
-  // getFeaturedEvents,
-};
+
 
 
 
@@ -386,8 +377,7 @@ export {
     createEvent,
     updateEvent,
     deleteEvent,
-    getEvents,
-    registerForEvent,
-    getAllRegistrations 
+    getMyEvents
+   
 
 }

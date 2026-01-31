@@ -4,13 +4,14 @@ import {
     getEventById,
     createEvent,
     updateEvent,
-    deleteEvent
+    deleteEvent,
+    getMyEvents
 } from "../controllers/event.controllers.js";
-import { verifyJWT } from '../middleswares/auth.middleware.js';
+import { verifyJWT } from '../middlewares/auth.middleware.js';
 
-import {isOrganizer} from "../middleswares/role.middleware.js"
+import {isOrganizer} from "../middlewares/role.middleware.js"
 
-import { upload } from "../middleswares/multer.middleware.js";
+import { upload } from "../middlewares/multer.middleware.js";
 
 const router = Router();
 
