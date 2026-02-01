@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Calendar, Mail, Lock, Eye, EyeOff, ArrowLeft, User, Building, Phone } from 'lucide-react';
+import { API_ENDPOINTS } from '../config/api';
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -45,19 +46,26 @@ const Signup = () => {
     }
 
     try {
-      const response = await fetch('http://localhost:5000/api/auth/signup', {
+      const response = await fetch(API_ENDPOINTS.SIGNUP, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        phone: formData.phone,
+        userType: formData.userType,
+        organizationName: formData.organizationName
+      })
       });
       
       const data = await response.json();
       
       if (data.success) {
-        localStorage.setItem('user', JSON.stringify(data.user));
-        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.data.user));
+        localStorage.setItem('token', data.data.token);
        // Redirect based on userType
-        if (data.user.userType === 'organizer') {
+        if (data.data.user.userType === 'organizer') {
           navigate('/organizer-dashboard');
         } else {
           navigate('/dashboard');
@@ -67,24 +75,25 @@ const Signup = () => {
       }
     } catch (error) {
       console.error('Signup error:', error);
+      alert('An error occured during singup. Please try again later.')
       
-      const demoUser = {
-        name: formData.name,
-        email: formData.email,
-        userType: formData.userType,
-        organizationName: formData.organizationName
-      };
+      // const demoUser = {
+      //   name: formData.name,
+      //   email: formData.email,
+      //   userType: formData.userType,
+      //   organizationName: formData.organizationName
+      // };
       
-      localStorage.setItem('user', JSON.stringify(demoUser));
-      localStorage.setItem('token', 'demo-token-12345');
+      // localStorage.setItem('user', JSON.stringify(demoUser));
+      // localStorage.setItem('token', 'demo-token-12345');
       
-      alert('Account created successfully! ');
-      // Redirect based on userType
-      if (formData.userType === 'organizer') {
-        navigate('/organizer-dashboard');
-      } else {
-        navigate('/dashboard');
-      }
+      // alert('Account created successfully! ');
+      // // Redirect based on userType
+      // if (formData.userType === 'organizer') {
+      //   navigate('/organizer-dashboard');
+      // } else {
+      //   navigate('/dashboard');
+      // }
     }
   }
  

@@ -23,129 +23,126 @@ const generateAccessAndRefreshTokens = async (userId) => {
 
 // SIGNUP - Fixed field names and added missing fields
 const signupUser = asyncHandler(async (req, res) => {
-    try {
-        const { name, email, password, phone, userType, organizationName } = req.body;  // Changed username → name, added fields
+  const { name, email, password, phone, userType, organizationName } = req.body;
 
-        // Validation
-        if (!name || !email || !password) {
-            throw new ApiError(400, "Name, email and password are required");
-        }
+  // Validation
+  if (!name || !email || !password) {
+    throw new ApiError(400, "Name, email and password are required");
+  }
 
-        // Check if user already exists
-        const existingUser = await User.findOne({ email });
-        if (existingUser) throw new ApiError(409, "User already exists");
+  // Check if user already exists
+  const existingUser = await User.findOne({ email });
+  if (existingUser) {
+    throw new ApiError(409, "User already exists");
+  }
 
-        // Create new user
-        const newUser = await User.create({ 
-            name,  // Changed from username
-            email, 
-            password,
-            phone,  // Added
-            userType: userType || 'user',  // Added with default
-            organizationName  // Added (only for organizers)
-        });
+  // Create new user
+  const newUser = await User.create({
+    name,
+    email,
+    password,
+    phone: phone || "",
+    userType: userType || "user",
+    organizationName: organizationName || "",
+  });
 
-        const createdUser = await User.findById(newUser._id).select("-password -refreshToken");
+  const createdUser = await User.findById(newUser._id).select(
+    "-password -refreshToken"
+  );
 
-        if (!createdUser) throw new ApiError(500, "Unable to create user");
+  if (!createdUser) {
+    throw new ApiError(500, "Unable to create user");
+  }
 
-        // Generate tokens
-        const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(createdUser._id);
+  // Generate tokens
+  const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
+    createdUser._id
+  );
 
-        // Fire-and-forget email trigger
-        sendEmail({
-            to: createdUser.email,
-            subject: "Welcome to EventHub 🎉",
-            html: `<h2>Hi ${createdUser.name},</h2><p>Your account has been created successfully. We're excited to have you onboard!</p>`
-        });
+  // Send welcome email (fire-and-forget)
+  sendEmail({
+    to: createdUser.email,
+    subject: "Welcome to EventHub 🎉",
+    html: `<h2>Hi ${createdUser.name},</h2><p>Your account has been created successfully. We're excited to have you onboard!</p>`,
+  }).catch((err) => console.log("Email sending failed:", err));
 
-        // Return response with token (frontend needs this)
-        return res.status(201).json(
-            new ApiResponse(
-                201,
-                {
-                    user: {
-                        _id: createdUser._id,
-                        name: createdUser.name,
-                        email: createdUser.email,
-                        phone: createdUser.phone,
-                        userType: createdUser.userType,
-                        organizationName: createdUser.organizationName
-                    },
-                    token: accessToken  // Added - Frontend needs this
-                },
-                "User registered successfully",
-                true  // success flag
-            )
-        );
+  // Set cookies (optional but recommended)
+  const options = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+  };
 
-    } catch (error) {
-        const statusCode = error.statusCode || 500;
-        const message = error.message || "Internal Server Error";
-
-        return res.status(statusCode).json(
-            new ApiResponse(statusCode, null, message, false)
-        );
-    }
+  // Return response
+  return res
+    .status(201)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
+    .json(
+      new ApiResponse(
+        201,
+        {
+          user: {
+            _id: createdUser._id,
+            name: createdUser.name,
+            email: createdUser.email,
+            phone: createdUser.phone,
+            userType: createdUser.userType,
+            organizationName: createdUser.organizationName,
+          },
+          token: accessToken,
+          refreshToken,
+        },
+        "User registered successfully"
+      )
+    );
 });
 
 // LOGIN - Fixed field names
 const loginUser = asyncHandler(async (req, res) => {
-    try {
-        const { email, password } = req.body;
+  const { email, password } = req.body;
 
-        if (!email) throw new ApiError(400, "Email is required");
-        if (!password) throw new ApiError(400, "Password is required");
+  // Validation
+  if (!email) throw new ApiError(400, "Email is required");
+  if (!password) throw new ApiError(400, "Password is required");
 
-        // Check if user exists
-        const user = await User.findOne({ email });
-        if (!user) throw new ApiError(404, "User does not exist");
+  // Check if user exists
+  const user = await User.findOne({ email });
+  if (!user) throw new ApiError(404, "User does not exist");
 
-        // Check password
-        const isValid = await user.isPasswordCorrect(password);
-        if (!isValid) throw new ApiError(401, "Incorrect password");
+  // Check password
+  const isValid = await user.isPasswordCorrect(password);
+  if (!isValid) throw new ApiError(401, "Incorrect password");
 
-        // Generate tokens
-        const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id);
+  // Generate tokens
+  const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(user._id);
 
-        const options = {
-            httpOnly: true,
-            secure: true,
-        };
+  const options = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",  // ✅ Only secure in production
+  };
 
-        return res
-            .status(200)
-            .cookie("accessToken", accessToken, options)
-            .cookie("refreshToken", refreshToken, options)
-            .json(
-                new ApiResponse(
-                    200,
-                    {
-                        user: {
-                            _id: user._id,
-                            name: user.name,  // Changed from username
-                            email: user.email,
-                            phone: user.phone,  // Added
-                            userType: user.userType,  // Changed from role
-                            organizationName: user.organizationName  // Added
-                        },
-                        token: accessToken  // Added - Frontend needs this
-                    },
-                    "User logged in successfully",
-                    true  // success flag
-                )
-            );
-
-    } catch (error) {
-        const statusCode = error.statusCode || 500;
-        const message = error.message || "Internal Server Error";
-
-        return res.status(statusCode).json(
-            new ApiResponse(statusCode, null, message, false)
-        );
-    }
+  return res
+    .status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
+    .json(
+      new ApiResponse(
+        200,
+        {
+          user: {
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            phone: user.phone,
+            userType: user.userType,
+            organizationName: user.organizationName,
+          },
+          token: accessToken,
+        },
+        "User logged in successfully"
+      )
+    );
 });
-
 // LOGOUT - No changes needed
 const logoutUser = asyncHandler(async (req, res) => {
     await User.findByIdAndUpdate(

@@ -1,11 +1,12 @@
-const asyncHandler = (fn)=> async(res,req,next)=>{
+const asyncHandler = (fn) => async (req, res, next) => {  // ✅ Correct order: req, res, next
     try {
-        await fn(res,req,next)
+        await fn(req, res, next);
     } catch (error) {
-        res.status(error.code || 500).json({
-            success:false,
-            message:error.message
-        })
+        res.status(error.statusCode || 500).json({  // ✅ statusCode not code
+            success: false,
+            message: error.message
+        });
     }
-}
-export {asyncHandler}
+};
+
+export { asyncHandler };

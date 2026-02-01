@@ -1,7 +1,8 @@
 
 
-
-
+import { useContext } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { API_ENDPOINTS } from '../config/api';
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Calendar, Mail, Lock, Eye, EyeOff, ArrowLeft } from 'lucide-react';
@@ -9,6 +10,7 @@ import { Calendar, Mail, Lock, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 const Login = () => {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
+    const { login } = useAuth(); 
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -21,26 +23,35 @@ const Login = () => {
     });
   };
 
-  const handleSubmit = async () => {
+ const handleSubmit = async () => {
     if (!formData.email || !formData.password) {
       alert('Please fill all fields!');
       return;
     }
 
+    console.log('Attempting login to:', API_ENDPOINTS.LOGIN);
+    console.log('With data:', { email: formData.email });
+
     try {
-      const response = await fetch('http://localhost:5000/api/auth/login', {
+      const response = await fetch(API_ENDPOINTS.LOGIN, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password
+        })
       });
       
-      const data = await response.json();
+      console.log('Response Status:', response.status);
+      console.log('Response OK:', response.ok);
       
-      if (data.success) {
-        localStorage.setItem('user', JSON.stringify(data.user));
-        localStorage.setItem('token', data.token);
-       // Redirect based on userType
-        if (data.user.userType === 'organizer') {
+      const data = await response.json();
+      console.log('Full Response:', data);
+      
+      if (response.ok) {  // ✅ Simplified check
+        login(data.data.user, data.data.token);  // ✅ Use karo directly
+        
+        if (data.data.user.userType === 'organizer') {
           navigate('/organizer-dashboard');
         } else {
           navigate('/dashboard');
@@ -50,34 +61,8 @@ const Login = () => {
       }
     } catch (error) {
       console.error('Login error:', error);
-      
-      // FOR DEMO: Check if organizer exists in localStorage from signup
-      const storedUser = localStorage.getItem('user');
-      let demoUser;
-      
-      if (storedUser) {
-        demoUser = JSON.parse(storedUser);
-      } else {
-        demoUser = {
-          name: 'Demo User',
-          email: formData.email,
-          userType: 'user'
-        };
-      }
-      
-      localStorage.setItem('user', JSON.stringify(demoUser));
-      localStorage.setItem('token', 'demo-token-12345');
-      
-      alert('Login successful! (Demo Mode)');
-      
-      // Redirect based on userType
-      if (demoUser.userType === 'organizer') {
-        navigate('/organizer-dashboard');
-      } else {
-        navigate('/dashboard');
-      }
+      alert('An error occurred during login.');
     }
-
   };
 
   return (

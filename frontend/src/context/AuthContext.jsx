@@ -17,16 +17,24 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   // Check if user is already logged in (from localStorage)
-  useEffect(() => {
+ // src/context/AuthContext.jsx
+useEffect(() => {
+  try {
     const storedUser = localStorage.getItem('user');
     const storedToken = localStorage.getItem('token');
     
-    if (storedUser && storedToken) {
+    // ✅ Check for undefined/null strings
+    if (storedUser && storedUser !== 'undefined' && storedToken && storedToken !== 'undefined') {
       setUser(JSON.parse(storedUser));
       setIsLoggedIn(true);
     }
-    setLoading(false);
-  }, []);
+  } catch (error) {
+    console.error('Error loading auth data:', error);
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+  }
+  setLoading(false);
+}, []);
 
   // Login function
   const login = (userData, token) => {
