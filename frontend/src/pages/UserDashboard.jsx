@@ -1,17 +1,26 @@
 // src/pages/UserDashboard.jsx
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/Authcontext';
+import { useAuth } from '../context/AuthContext';
 import { Calendar, User, Ticket, Settings, LogOut, Home, List } from 'lucide-react';
 
 const UserDashboard = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
+  // ✅ Add check for user
+  React.useEffect(() => {
+    if (!user) {
+      navigate('/login');
+    }
+  }, [user, navigate]);
+
   const handleLogout = () => {
     logout();
     navigate('/');
   };
+
+  if (!user) return null;  // ✅ Prevent render without user
 
   return (
     <div className="min-h-screen bg-gray-50">

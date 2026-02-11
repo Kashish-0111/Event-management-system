@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Calendar, MapPin, Clock, DollarSign, Users, Image as ImageIcon, Tag, FileText, ArrowLeft, Plus, X } from 'lucide-react';
+import { API_ENDPOINTS, getAuthHeaders } from '../config/api';
 
 const CreateEvent = () => {
   const navigate = useNavigate();
@@ -50,7 +51,8 @@ const CreateEvent = () => {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setFormData({ ...formData, image: file });
+     setFormData(prev => ({ ...prev, image: file }));
+    
       
       // Create preview
       const reader = new FileReader();
@@ -87,27 +89,63 @@ const CreateEvent = () => {
       alert('Please fill all required fields!');
       return;
     }
+    // ✅ Check token FIRST
+  const token = localStorage.getItem('token');
+  console.log('Token before create event:', token);
+   if(!token){
+    alert('Please login first!');
+    navigate('/login');
+    return;
+   }
 
-    try {
-      // TODO: Replace with actual API call
-      const eventData = {
-        ...formData,
-        organizer: user.organizationName || user.name,
-        attendees: 0,
-        createdAt: new Date().toISOString()
-      };
-
-      // Demo: Save to localStorage (replace with API call)
-      const existingEvents = JSON.parse(localStorage.getItem('createdEvents') || '[]');
-      existingEvents.push(eventData);
-      localStorage.setItem('createdEvents', JSON.stringify(existingEvents));
-
-      alert('Event created successfully! (Demo Mode)');
-      navigate('/organizer-dashboard');
-    } catch (error) {
-      console.error('Error creating event:', error);
-      alert('Failed to create event. Please try again.');
+ try {
+    // Create FormData for file upload
+    const formDataToSend = new FormData();
+    
+    // Add all fields
+    formDataToSend.append('title', formData.title);
+    formDataToSend.append('description', formData.description);
+    formDataToSend.append('category', formData.category);
+    formDataToSend.append('date', formData.date);
+    formDataToSend.append('time', formData.time);
+    formDataToSend.append('location', formData.location);
+    formDataToSend.append('address', formData.address);
+    formDataToSend.append('price', parseFloat(formData.price));
+    formDataToSend.append('totalSeats', parseInt(formData.totalSeats));
+    
+    // Add arrays as JSON strings
+    formDataToSend.append('highlights', JSON.stringify(formData.highlights.filter(h => h.trim() !== '')));
+    formDataToSend.append('tags', JSON.stringify(formData.tags.filter(t => t.trim() !== '')));
+    
+    formDataToSend.append('organizer', user.organizationName || user.name);
+    
+    // Add image file if exists
+    if (formData.image) {
+      formDataToSend.append('image', formData.image);  // ✅ Actual file object
     }
+
+    const response = await fetch(API_ENDPOINTS.CREATE_EVENT, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+        // ⚠️ Don't add 'Content-Type' - FormData sets it automatically
+      },
+      body: formDataToSend  // ✅ FormData object
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      alert('Event created successfully!');
+      navigate('/organizer-dashboard');
+    } else {
+      alert(data.message || 'Failed to create event');
+    }
+  } catch (error) {
+    console.error('Error creating event:', error);
+    alert('Failed to create event. Please try again.');
+  }
+
   };
 
   const categories = ['Technology', 'Music', 'Sports', 'Business', 'Arts', 'Food', 'Education', 'Health', 'Entertainment'];

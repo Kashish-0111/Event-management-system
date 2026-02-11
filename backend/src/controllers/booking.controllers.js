@@ -12,10 +12,29 @@ import mongoose from "mongoose";
 // POST /api/bookings - Create booking
 export const createBooking = asyncHandler(async (req, res) => {
   const { event, tickets, totalAmount, userDetails, paymentMethod } = req.body;
+  
+  console.log('=== CREATE BOOKING REQUEST ===');
+  console.log('Event:', event);
+  console.log('Tickets:', tickets);
+  console.log('TotalAmount:', totalAmount);
+  console.log('UserDetails:', userDetails);
+  console.log('User:', req.user?.email);
 
   // Validate required fields
-  if (!event || !tickets || !totalAmount || !userDetails) {
-    throw new ApiError(400, "All fields are required");
+  if (!event) {
+    throw new ApiError(400, "Event ID is required");
+  }
+  
+  if (!tickets || tickets < 1) {
+    throw new ApiError(400, "At least 1 ticket is required");
+  }
+  
+  if (totalAmount === undefined || totalAmount === null) {
+    throw new ApiError(400, "Total amount is required");
+  }
+  
+  if (!userDetails || !userDetails.name || !userDetails.email) {
+    throw new ApiError(400, "User details (name, email) are required");
   }
 
   // Validate event exists
@@ -64,27 +83,32 @@ export const createBooking = asyncHandler(async (req, res) => {
   // Populate booking data for response
   await booking.populate("event");
 
-  // Send confirmation email
-  const user = await User.findById(req.user._id);
+  console.log('✅ Booking created:', booking._id);
+
+  // Send confirmation email (non-blocking)
   try {
-    await sendEmail({
-      to: user.email,
-      subject: `Booking Confirmed: ${eventData.title}`,
-      html: `
-        <h2>Hi ${user.username},</h2>
-        <p>Your booking for <strong>${eventData.title}</strong> is confirmed!</p>
-        <p><strong>Event Details:</strong></p>
-        <ul>
-          <li>Date: ${new Date(eventData.date).toDateString()}</li>
-          <li>Location: ${eventData.location}</li>
-          <li>Tickets: ${tickets}</li>
-          <li>Total Amount: ₹${totalAmount}</li>
-        </ul>
-        <p>See you there!</p>
-      `,
-    });
+    const user = await User.findById(req.user._id);
+    if (user && user.email) {
+      await sendEmail({
+        to: user.email,
+        subject: `Booking Confirmed: ${eventData.title}`,
+        html: `
+          <h2>Hi ${user.name || user.username},</h2>
+          <p>Your booking for <strong>${eventData.title}</strong> is confirmed!</p>
+          <p><strong>Event Details:</strong></p>
+          <ul>
+            <li>Date: ${new Date(eventData.date).toDateString()}</li>
+            <li>Location: ${eventData.location}</li>
+            <li>Tickets: ${tickets}</li>
+            <li>Total Amount: ₹${totalAmount}</li>
+          </ul>
+          <p>See you there!</p>
+        `,
+      });
+      console.log('✅ Email sent to:', user.email);
+    }
   } catch (emailError) {
-    console.log("Email sending failed:", emailError);
+    console.log("⚠️ Email sending failed:", emailError.message);
     // Don't throw error, booking is already created
   }
 
@@ -94,7 +118,6 @@ export const createBooking = asyncHandler(async (req, res) => {
       new ApiResponse(201, booking, "Booking created successfully")
     );
 });
-
 // GET /api/bookings/my-bookings - User's bookings
 export const getMyBookings = asyncHandler(async (req, res) => {
   const bookings = await Booking.find({ user: req.user._id })

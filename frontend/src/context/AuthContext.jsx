@@ -36,13 +36,19 @@ useEffect(() => {
   setLoading(false);
 }, []);
 
-  // Login function
-  const login = (userData, token) => {
-    setUser(userData);
-    setIsLoggedIn(true);
-    localStorage.setItem('user', JSON.stringify(userData));
-    localStorage.setItem('token', token);
-  };
+  // context/AuthContext.jsx
+const login = (userData, userToken) => {
+  console.log('=== AuthContext Login Called ===');
+  console.log('User:', userData);
+  console.log('Token:', userToken);
+  
+  setUser(userData);
+  setIsLoggedIn(true);
+  localStorage.setItem('user', JSON.stringify(userData));
+  localStorage.setItem('token', userToken);
+  
+  console.log('Token saved:', localStorage.getItem('token'));
+};
 
   // Signup function
   const signup = (userData, token) => {

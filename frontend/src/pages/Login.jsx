@@ -42,16 +42,29 @@ const Login = () => {
         })
       });
       
-      console.log('Response Status:', response.status);
-      console.log('Response OK:', response.ok);
+    const data = await response.json();
+      console.log('Login Response:', data);
       
-      const data = await response.json();
-      console.log('Full Response:', data);
-      
-      if (response.ok) {  // ✅ Simplified check
-        login(data.data.user, data.data.token);  // ✅ Use karo directly
+      if (response.ok && data.success && data.data) {
+        // ✅ Extract user and token
+        const { user, token } = data.data;
         
-        if (data.data.user.userType === 'organizer') {
+        console.log('Saving user:', user);
+        console.log('Saving token:', token);
+        
+        // ✅ Call login from context
+        login(user, token);
+        
+        // ✅ Verify saved
+        setTimeout(() => {
+          console.log('Stored token:', localStorage.getItem('token'));
+          console.log('Stored user:', localStorage.getItem('user'));
+        }, 100);
+        
+        alert('Login successful!');
+        
+        // ✅ Navigate based on userType
+        if (user.userType === 'organizer') {
           navigate('/organizer-dashboard');
         } else {
           navigate('/dashboard');

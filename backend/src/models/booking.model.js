@@ -3,6 +3,9 @@ import mongoose from "mongoose";
 const bookingSchema = new mongoose.Schema({
     bookingId: {  // Added - Unique ID for display (BK1234567890)
         type: String,
+         default: function() {
+        return 'BKG-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+      },
         unique: true,
         required: true
     },
@@ -45,7 +48,7 @@ const bookingSchema = new mongoose.Schema({
     },
     paymentMethod: {  // Added - Payment type
         type: String,
-        enum: ['card', 'upi', 'netbanking'],
+        enum: ['card', 'upi', 'netbanking',"cash"],
         required: true
     },
     status: {

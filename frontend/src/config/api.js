@@ -9,10 +9,11 @@ export const API_ENDPOINTS = {
   CURRENT_USER: `${API_BASE_URL}/auth/me`,
   
   // Events
+  GET_ALL_EVENTS: `${API_BASE_URL}/events`, 
   EVENTS: `${API_BASE_URL}/events`,
   CREATE_EVENT: `${API_BASE_URL}/events`,
   EVENT_BY_ID: (id) => `${API_BASE_URL}/events/${id}`,
-  MY_EVENTS: `${API_BASE_URL}/events/my-events`,
+  GET_MY_EVENTS: `${API_BASE_URL}/events/my-events`,
   
   // Bookings
   BOOKINGS: `${API_BASE_URL}/bookings`,

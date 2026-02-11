@@ -1,13 +1,15 @@
 // src/pages/OrganizerDashboard.jsx
-
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Calendar, User, Ticket, Settings, LogOut, Home, Plus, Edit, Trash2, Eye, Users, DollarSign, TrendingUp } from 'lucide-react';
+import { API_ENDPOINTS } from '../config/api';
 
 const OrganizerDashboard = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [myEvents, setMyEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [stats, setStats] = useState({
     totalEvents: 0,
     totalRevenue: 0,
@@ -23,33 +25,79 @@ const OrganizerDashboard = () => {
 
       // Check if user is organizer
       if (userData.userType !== 'organizer') {
-        alert('Access denied! This page is for organizers only.');
-        navigate('/dashboard');
+        alert('Access denied! Only organizers can access this page.');
+        navigate('/');
+        return;
+      }
+    } else {
+      navigate('/login');
+      return;
+    }
+
+    loadMyEvents();
+  }, [navigate]);
+
+  // ✅ Helper function for auth headers
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('token');
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    };
+  };
+
+  // ✅ Fetch my events from API
+  const loadMyEvents = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate('/login');
         return;
       }
 
-      // Load created events from localStorage
-      loadMyEvents();
-    } else {
-      navigate('/login');
+      console.log('Fetching my events...');
+
+      const response = await fetch(`${API_ENDPOINTS.GET_ALL_EVENTS}/my-events`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const data = await response.json();
+      console.log('My Events Response:', data);
+
+      if (data.success && data.data) {
+        const events = data.data.events || [];
+        setMyEvents(events);
+        calculateStats(events);
+      } else {
+        setMyEvents([]);
+        calculateStats([]);
+      }
+    } catch (err) {
+      console.error('Error loading events:', err);
+      setError('Failed to load events');
+      setMyEvents([]);
+    } finally {
+      setLoading(false);
     }
-  }, [navigate]);
+  };
 
-  const loadMyEvents = () => {
-    const createdEvents = JSON.parse(localStorage.getItem('createdEvents') || '[]');
-    setMyEvents(createdEvents);
-
-    // Calculate stats
-    const totalEvents = createdEvents.length;
-    const totalRevenue = createdEvents.reduce((sum, event) => sum + (event.price * event.attendees || 0), 0);
-    const totalAttendees = createdEvents.reduce((sum, event) => sum + (event.attendees || 0), 0);
-    const activeEvents = createdEvents.filter(event => new Date(event.date) >= new Date()).length;
+  // ✅ Calculate stats from events
+  const calculateStats = (events) => {
+    const totalEvents = events.length;
+    const activeEvents = events.filter(e => new Date(e.date) >= new Date()).length;
+    const totalAttendees = events.reduce((sum, e) => sum + (e.attendees || 0), 0);
+    const totalRevenue = events.reduce((sum, e) => sum + ((e.attendees || 0) * (e.price || 0)), 0);
 
     setStats({
       totalEvents,
-      totalRevenue,
+      activeEvents,
       totalAttendees,
-      activeEvents
+      totalRevenue
     });
   };
 
@@ -59,30 +107,61 @@ const OrganizerDashboard = () => {
     navigate('/');
   };
 
-  const handleDeleteEvent = (index) => {
-    if (window.confirm('Are you sure you want to delete this event?')) {
-      const updatedEvents = myEvents.filter((_, i) => i !== index);
-      localStorage.setItem('createdEvents', JSON.stringify(updatedEvents));
-      setMyEvents(updatedEvents);
-      alert('Event deleted successfully!');
-      loadMyEvents();
+  // ✅ Delete event via API
+  const handleDeleteEvent = async (eventId) => {
+    if (!window.confirm('Are you sure you want to delete this event?')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+
+      const response = await fetch(`${API_ENDPOINTS.GET_ALL_EVENTS}/${eventId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const data = await response.json();
+
+      if (data.success || response.ok) {
+        alert('Event deleted successfully!');
+        loadMyEvents(); // Reload events
+      } else {
+        alert(data.message || 'Failed to delete event');
+      }
+    } catch (err) {
+      console.error('Error deleting event:', err);
+      alert('Failed to delete event. Please try again.');
     }
   };
 
-  const handleEditEvent = (event, index) => {
+  const handleEditEvent = (event) => {
     // TODO: Navigate to edit page with event data
     alert('Edit functionality coming soon!');
+    // navigate(`/edit-event/${event._id}`, { state: event });
   };
 
-  const handleViewEvent = (event, index) => {
-    // Navigate to event details (use state to pass data)
-    navigate(`/event/${index}`, { state: event });
+  const handleViewEvent = (eventId) => {
+    navigate(`/events/${eventId}`);
   };
 
-  const handleViewRegistrations = (index) => {
-    // Navigate to view registrations page
-    navigate(`/view-registrations/${index}`);
+  const handleViewRegistrations = (eventId) => {
+    navigate(`/view-registrations/${eventId}`);
   };
+
+  // ✅ Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-purple-600 border-t-transparent"></div>
+          <p className="mt-4 text-gray-600">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -91,10 +170,14 @@ const OrganizerDashboard = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <Calendar className="h-8 w-8 text-purple-600" />
-              <span className="ml-2 text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                EventHub
-              </span>
+              <Link to="/">
+                <div className="flex items-center cursor-pointer">
+                  <Calendar className="h-8 w-8 text-purple-600" />
+                  <span className="ml-2 text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                    EventHub
+                  </span>
+                </div>
+              </Link>
             </div>
             <div className="flex items-center space-x-4">
               <Link to="/">
@@ -129,6 +212,13 @@ const OrganizerDashboard = () => {
             </button>
           </Link>
         </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-lg mb-6">
+            {error}
+          </div>
+        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -177,7 +267,7 @@ const OrganizerDashboard = () => {
                 <TrendingUp className="h-6 w-6 text-green-600" />
               </div>
               <span className="text-3xl font-bold text-gray-800">
-                {myEvents.length > 0 ? Math.round(stats.totalAttendees / stats.totalEvents) : 0}
+                {stats.totalEvents > 0 ? Math.round(stats.totalAttendees / stats.totalEvents) : 0}
               </span>
             </div>
             <h3 className="text-gray-600 font-medium">Avg Attendees</h3>
@@ -212,18 +302,28 @@ const OrganizerDashboard = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              {myEvents.map((event, index) => (
+              {myEvents.map((event) => (
                 <div 
-                  key={index} 
+                  key={event._id} 
                   className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition"
                 >
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     {/* Event Info */}
                     <div className="flex-1">
                       <div className="flex items-start gap-4">
-                        {/* Event Image Placeholder */}
-                        <div className="w-24 h-24 bg-gradient-to-br from-purple-100 to-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                          <Calendar className="h-10 w-10 text-purple-600" />
+                        {/* Event Image */}
+                        <div className="w-24 h-24 rounded-lg overflow-hidden flex-shrink-0">
+                          {event.imageUrl ? (
+                            <img 
+                              src={event.imageUrl} 
+                              alt={event.title}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-gradient-to-br from-purple-100 to-blue-100 flex items-center justify-center">
+                              <Calendar className="h-10 w-10 text-purple-600" />
+                            </div>
+                          )}
                         </div>
                         
                         {/* Event Details */}
@@ -234,7 +334,7 @@ const OrganizerDashboard = () => {
                               <div className="space-y-1 text-sm text-gray-600">
                                 <p className="flex items-center">
                                   <Calendar className="h-4 w-4 mr-2 text-purple-600" />
-                                  {event.date} • {event.time}
+                                  {new Date(event.date).toLocaleDateString()} • {event.time || 'TBA'}
                                 </p>
                                 <p className="flex items-center">
                                   <Users className="h-4 w-4 mr-2 text-purple-600" />
@@ -242,7 +342,7 @@ const OrganizerDashboard = () => {
                                 </p>
                                 <p className="flex items-center">
                                   <DollarSign className="h-4 w-4 mr-2 text-purple-600" />
-                                  {event.price === 0 || event.price === '0' ? 'Free' : `₹${event.price}`}
+                                  {event.price === 0 ? 'Free' : `₹${event.price}`}
                                 </p>
                               </div>
                             </div>
@@ -263,7 +363,7 @@ const OrganizerDashboard = () => {
                     {/* Action Buttons */}
                     <div className="flex md:flex-col gap-2">
                       <button
-                        onClick={() => handleViewRegistrations(index)}
+                        onClick={() => handleViewRegistrations(event._id)}
                         className="flex-1 md:flex-none px-4 py-2 bg-green-100 text-green-700 rounded-lg font-medium hover:bg-green-200 transition flex items-center justify-center"
                         title="View Registrations"
                       >
@@ -271,7 +371,7 @@ const OrganizerDashboard = () => {
                         <span className="hidden md:inline">Registrations</span>
                       </button>
                       <button
-                        onClick={() => handleViewEvent(event, index)}
+                        onClick={() => handleViewEvent(event._id)}
                         className="flex-1 md:flex-none px-4 py-2 bg-blue-100 text-blue-700 rounded-lg font-medium hover:bg-blue-200 transition flex items-center justify-center"
                         title="View Event"
                       >
@@ -279,7 +379,7 @@ const OrganizerDashboard = () => {
                         <span className="hidden md:inline">View</span>
                       </button>
                       <button
-                        onClick={() => handleEditEvent(event, index)}
+                        onClick={() => handleEditEvent(event)}
                         className="flex-1 md:flex-none px-4 py-2 bg-purple-100 text-purple-700 rounded-lg font-medium hover:bg-purple-200 transition flex items-center justify-center"
                         title="Edit Event"
                       >
@@ -287,7 +387,7 @@ const OrganizerDashboard = () => {
                         <span className="hidden md:inline">Edit</span>
                       </button>
                       <button
-                        onClick={() => handleDeleteEvent(index)}
+                        onClick={() => handleDeleteEvent(event._id)}
                         className="flex-1 md:flex-none px-4 py-2 bg-red-100 text-red-700 rounded-lg font-medium hover:bg-red-200 transition flex items-center justify-center"
                         title="Delete Event"
                       >
@@ -306,7 +406,7 @@ const OrganizerDashboard = () => {
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div 
                         className="bg-gradient-to-r from-purple-600 to-blue-600 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${((event.attendees || 0) / event.totalSeats) * 100}%` }}
+                        style={{ width: `${Math.min(((event.attendees || 0) / event.totalSeats) * 100, 100)}%` }}
                       ></div>
                     </div>
                   </div>
@@ -314,45 +414,6 @@ const OrganizerDashboard = () => {
               ))}
             </div>
           )}
-        </div>
-
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-          {/* <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition cursor-pointer">
-            <div className="flex items-center space-x-4">
-              <div className="p-3 bg-purple-100 rounded-lg">
-                <User className="h-6 w-6 text-purple-600" />
-              </div>
-              <div>
-                <h3 className="font-bold text-gray-800">Profile Settings</h3>
-                <p className="text-sm text-gray-600">Manage your account</p>
-              </div>
-            </div>
-          </div> */}
-
-          {/* <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition cursor-pointer">
-            <div className="flex items-center space-x-4">
-              <div className="p-3 bg-blue-100 rounded-lg">
-                <Ticket className="h-6 w-6 text-blue-600" />
-              </div>
-              <div>
-                <h3 className="font-bold text-gray-800">View Bookings</h3>
-                <p className="text-sm text-gray-600">See all registrations</p>
-              </div>
-            </div>
-          </div> */}
-
-          {/* <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition cursor-pointer">
-            <div className="flex items-center space-x-4">
-              <div className="p-3 bg-indigo-100 rounded-lg">
-                <Settings className="h-6 w-6 text-indigo-600" />
-              </div>
-              <div>
-                <h3 className="font-bold text-gray-800">Settings</h3>
-                <p className="text-sm text-gray-600">Configure preferences</p>
-              </div>
-            </div>
-          </div> */}
         </div>
       </div>
     </div>

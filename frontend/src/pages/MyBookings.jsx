@@ -2,12 +2,15 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Calendar, MapPin, Clock, Users, Ticket, Download, X, Eye, ArrowLeft, LogOut, Home, Filter } from 'lucide-react';
+import { API_ENDPOINTS } from '../config/api';
 
 const MyBookings = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [bookings, setBookings] = useState([]);
   const [filter, setFilter] = useState('all'); // all, upcoming, past
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -16,15 +19,48 @@ const MyBookings = () => {
     } else {
       alert('Please login to view your bookings');
       navigate('/login');
+      return;
     }
 
-    // Load bookings
     loadBookings();
   }, [navigate]);
 
-  const loadBookings = () => {
-    const myBookings = JSON.parse(localStorage.getItem('myBookings') || '[]');
-    setBookings(myBookings);
+  // ✅ API Integration - Fetch bookings from backend
+  const loadBookings = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+
+      console.log('Fetching bookings...');
+
+      const response = await fetch(`${API_ENDPOINTS.GET_ALL_EVENTS.replace('/events', '/bookings')}/my-bookings`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const data = await response.json();
+      console.log('Bookings Response:', data);
+
+      if (data.success && data.data) {
+        setBookings(data.data.bookings || data.data || []);
+      } else {
+        setBookings([]);
+      }
+    } catch (err) {
+      console.error('Error loading bookings:', err);
+      setError('Failed to load bookings');
+      setBookings([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleLogout = () => {
@@ -33,41 +69,62 @@ const MyBookings = () => {
     navigate('/');
   };
 
-  const handleCancelBooking = (index) => {
-    if (window.confirm('Are you sure you want to cancel this booking?')) {
-      const updatedBookings = bookings.filter((_, i) => i !== index);
-      localStorage.setItem('myBookings', JSON.stringify(updatedBookings));
-      setBookings(updatedBookings);
-      alert('Booking cancelled successfully!');
+  // ✅ Cancel booking via API
+  const handleCancelBooking = async (bookingId) => {
+    if (!window.confirm('Are you sure you want to cancel this booking?')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+
+      const response = await fetch(`${API_ENDPOINTS.GET_ALL_EVENTS.replace('/events', '/bookings')}/${bookingId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const data = await response.json();
+
+      if (data.success || response.ok) {
+        alert('Booking cancelled successfully!');
+        loadBookings(); // Reload bookings
+      } else {
+        alert(data.message || 'Failed to cancel booking');
+      }
+    } catch (err) {
+      console.error('Error cancelling booking:', err);
+      alert('Failed to cancel booking. Please try again.');
     }
   };
 
-  const handleViewEvent = (booking) => {
-    navigate(`/event/${booking.event.id}`, { state: booking.event });
+  const handleViewEvent = (eventId) => {
+    navigate(`/events/${eventId}`);
   };
 
   const handleDownloadTicket = (booking) => {
-    // Demo: Create a simple ticket text
+    // Create ticket text
     const ticketText = `
 =====================================
         EVENTHUB TICKET
 =====================================
 
-Booking ID: ${booking.bookingId}
-Event: ${booking.event.title}
-Date: ${booking.event.date}
-Time: ${booking.event.time}
-Location: ${booking.event.location}
+Booking ID: ${booking._id}
+Event: ${booking.event?.title || 'N/A'}
+Date: ${booking.event?.date ? new Date(booking.event.date).toLocaleDateString() : 'N/A'}
+Time: ${booking.event?.time || 'N/A'}
+Location: ${booking.event?.location || 'N/A'}
 
-Ticket Holder: ${booking.userDetails.name}
-Email: ${booking.userDetails.email}
-Phone: ${booking.userDetails.phone}
+Ticket Holder: ${booking.userDetails?.name || 'N/A'}
+Email: ${booking.userDetails?.email || 'N/A'}
+Phone: ${booking.userDetails?.phone || 'N/A'}
 
 Number of Tickets: ${booking.tickets}
 Total Amount: ₹${booking.totalAmount}
-Payment Method: ${booking.paymentMethod.toUpperCase()}
+Payment Method: ${booking.paymentMethod?.toUpperCase() || 'N/A'}
 
-Booked on: ${new Date(booking.bookingDate).toLocaleDateString()}
+Booked on: ${new Date(booking.createdAt).toLocaleDateString()}
 
 =====================================
     Thank you for booking with us!
@@ -80,7 +137,7 @@ Booked on: ${new Date(booking.bookingDate).toLocaleDateString()}
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `Ticket_${booking.bookingId}.txt`;
+    a.download = `Ticket_${booking._id}.txt`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -89,17 +146,29 @@ Booked on: ${new Date(booking.bookingDate).toLocaleDateString()}
     const now = new Date();
     
     if (filter === 'upcoming') {
-      return bookings.filter(b => new Date(b.event.date) >= now);
+      return bookings.filter(b => b.event?.date && new Date(b.event.date) >= now);
     } else if (filter === 'past') {
-      return bookings.filter(b => new Date(b.event.date) < now);
+      return bookings.filter(b => b.event?.date && new Date(b.event.date) < now);
     }
     return bookings;
   };
 
   const filteredBookings = getFilteredBookings();
 
-  const upcomingCount = bookings.filter(b => new Date(b.event.date) >= new Date()).length;
-  const pastCount = bookings.filter(b => new Date(b.event.date) < new Date()).length;
+  const upcomingCount = bookings.filter(b => b.event?.date && new Date(b.event.date) >= new Date()).length;
+  const pastCount = bookings.filter(b => b.event?.date && new Date(b.event.date) < new Date()).length;
+
+  // ✅ Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-purple-600 border-t-transparent"></div>
+          <p className="mt-4 text-gray-600">Loading your bookings...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -151,6 +220,13 @@ Booked on: ${new Date(booking.bookingDate).toLocaleDateString()}
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-lg mb-6">
+            {error}
+          </div>
+        )}
+
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white rounded-xl shadow-md p-6">
@@ -240,9 +316,9 @@ Booked on: ${new Date(booking.bookingDate).toLocaleDateString()}
             </div>
           ) : (
             <div className="space-y-4">
-              {filteredBookings.map((booking, index) => (
+              {filteredBookings.map((booking) => (
                 <div 
-                  key={index}
+                  key={booking._id}
                   className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition"
                 >
                   <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -251,33 +327,34 @@ Booked on: ${new Date(booking.bookingDate).toLocaleDateString()}
                       <div className="flex items-start justify-between mb-3">
                         <div>
                           <h3 className="text-xl font-bold text-gray-800 mb-1">
-                            {booking.event.title}
+                            {booking.event?.title || 'Event'}
                           </h3>
                           <p className="text-sm text-gray-500 mb-2">
-                            Booking ID: {booking.bookingId}
+                            Booking ID: #{booking._id.slice(-8)}
                           </p>
                         </div>
                         <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                          new Date(booking.event.date) >= new Date()
+                          booking.event?.date && new Date(booking.event.date) >= new Date()
                             ? 'bg-green-100 text-green-700'
                             : 'bg-gray-100 text-gray-700'
                         }`}>
-                          {new Date(booking.event.date) >= new Date() ? 'Upcoming' : 'Completed'}
+                          {booking.status === 'cancelled' ? 'Cancelled' :
+                           booking.event?.date && new Date(booking.event.date) >= new Date() ? 'Upcoming' : 'Completed'}
                         </span>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-600">
                         <div className="flex items-center">
                           <Calendar className="h-4 w-4 mr-2 text-purple-600" />
-                          {booking.event.date}
+                          {booking.event?.date ? new Date(booking.event.date).toLocaleDateString() : 'N/A'}
                         </div>
                         <div className="flex items-center">
                           <Clock className="h-4 w-4 mr-2 text-purple-600" />
-                          {booking.event.time}
+                          {booking.event?.time || 'N/A'}
                         </div>
                         <div className="flex items-center">
                           <MapPin className="h-4 w-4 mr-2 text-purple-600" />
-                          {booking.event.location}
+                          {booking.event?.location || 'N/A'}
                         </div>
                         <div className="flex items-center">
                           <Ticket className="h-4 w-4 mr-2 text-purple-600" />
@@ -303,17 +380,17 @@ Booked on: ${new Date(booking.bookingDate).toLocaleDateString()}
                         <Download className="h-4 w-4 lg:mr-2" />
                         <span className="hidden lg:inline">Download</span>
                       </button>
-                      {/* <button
-                        onClick={() => handleViewEvent(booking)}
+                      <button
+                        onClick={() => handleViewEvent(booking.event?._id)}
                         className="flex-1 lg:flex-none px-4 py-2 bg-blue-100 text-blue-700 rounded-lg font-medium hover:bg-blue-200 transition flex items-center justify-center"
                         title="View Event"
                       >
                         <Eye className="h-4 w-4 lg:mr-2" />
                         <span className="hidden lg:inline">View</span>
-                      </button> */}
-                      {new Date(booking.event.date) >= new Date() && (
+                      </button>
+                      {booking.status !== 'cancelled' && booking.event?.date && new Date(booking.event.date) >= new Date() && (
                         <button
-                          onClick={() => handleCancelBooking(index)}
+                          onClick={() => handleCancelBooking(booking._id)}
                           className="flex-1 lg:flex-none px-4 py-2 bg-red-100 text-red-700 rounded-lg font-medium hover:bg-red-200 transition flex items-center justify-center"
                           title="Cancel Booking"
                         >
@@ -327,13 +404,8 @@ Booked on: ${new Date(booking.bookingDate).toLocaleDateString()}
                   {/* Attendee Details */}
                   <div className="mt-4 pt-4 border-t bg-gray-50 rounded-lg p-3">
                     <p className="text-sm text-gray-600">
-                      <strong>Attendee:</strong> {booking.userDetails.name} | {booking.userDetails.email} | {booking.userDetails.phone}
+                      <strong>Attendee:</strong> {booking.userDetails?.name} | {booking.userDetails?.email} | {booking.userDetails?.phone}
                     </p>
-                    {booking.userDetails.specialRequests && (
-                      <p className="text-sm text-gray-600 mt-1">
-                        <strong>Special Requests:</strong> {booking.userDetails.specialRequests}
-                      </p>
-                    )}
                   </div>
                 </div>
               ))}

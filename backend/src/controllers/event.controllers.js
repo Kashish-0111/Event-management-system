@@ -117,7 +117,7 @@ const getEventById = asyncHandler(async (req, res) => {
 
 // POST /api/events - Create new event
 const createEvent = asyncHandler(async (req, res) => {
-  const { title, description, date, location, category, price, totalSeats } = req.body;
+  const {  title, description, category, date, time, location, address, price, totalSeats, highlights, tags, organizer } = req.body;
 
   // Validate required fields
   if (!title || !description || !date || !location || !totalSeats) {
@@ -142,21 +142,29 @@ const createEvent = asyncHandler(async (req, res) => {
       imageUrl = cloudinaryResult.secure_url;
     }
   }
+  // Parse JSON strings back to arrays
+  const highlightsArray = highlights ? JSON.parse(highlights) : [];
+  const tagsArray = tags ? JSON.parse(tags) : [];
 
   // Create event
+  
   const event = await Event.create({
     title,
     description,
+    category,
     date,
+    time,
     location,
-    category: category || "other",
-    price: price || 0,
-    totalSeats,
+    address,
+    price: parseFloat(price) || 0,
+    totalSeats: parseInt(totalSeats),
+    highlights: highlightsArray,
+    tags: tagsArray,
+    organizer,
     imageUrl,
     createdBy: req.user._id,
     attendees: 0,
   });
-
   if (!event) {
     throw new ApiError(500, "Unable to create event. Please try again later");
   }

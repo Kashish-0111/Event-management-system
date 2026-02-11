@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { Calendar, Users, Mail, Phone, Download, ArrowLeft, LogOut, Home, Search, Filter, User } from 'lucide-react';
+import { API_ENDPOINTS } from '../config/api';
 
 const ViewRegistrations = () => {
   const { eventId } = useParams();
@@ -10,6 +11,8 @@ const ViewRegistrations = () => {
   const [event, setEvent] = useState(null);
   const [registrations, setRegistrations] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -31,28 +34,59 @@ const ViewRegistrations = () => {
     loadEventAndRegistrations();
   }, [eventId, navigate]);
 
-  const loadEventAndRegistrations = () => {
-    // Load events created by organizer
-    const createdEvents = JSON.parse(localStorage.getItem('createdEvents') || '[]');
-    const currentEvent = createdEvents[eventId];
+  // ✅ API Integration - Fetch from backend
+  const loadEventAndRegistrations = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const token = localStorage.getItem('token');
 
-    if (!currentEvent) {
-      alert('Event not found!');
-      navigate('/organizer-dashboard');
-      return;
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+
+      // Fetch event details
+      const eventResponse = await fetch(`${API_ENDPOINTS.GET_ALL_EVENTS}/${eventId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const eventData = await eventResponse.json();
+
+      console.log('Event Data:', eventData);
+
+      if (eventData.success && eventData.data) {
+        setEvent(eventData.data.event || eventData.data);
+      } else {
+        setError('Event not found');
+        return;
+      }
+
+      // Fetch registrations for this event
+      const registrationsResponse = await fetch(
+        `${API_ENDPOINTS.GET_ALL_EVENTS.replace('/events', '/bookings')}/event/${eventId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+      const registrationsData = await registrationsResponse.json();
+
+      console.log('Registrations Data:', registrationsData);
+
+      if (registrationsData.success && registrationsData.data) {
+        setRegistrations(registrationsData.data.registrations || []);
+      } else {
+        setRegistrations([]);
+      }
+    } catch (err) {
+      console.error('Error loading data:', err);
+      setError('Failed to load registrations');
+    } finally {
+      setLoading(false);
     }
-
-    setEvent(currentEvent);
-
-    // Load all bookings and filter for this event
-    const allBookings = JSON.parse(localStorage.getItem('myBookings') || '[]');
-    
-    // Filter bookings for this specific event (matching by title - in real app would use event ID)
-    const eventBookings = allBookings.filter(
-      booking => booking.event.title === currentEvent.title
-    );
-
-    setRegistrations(eventBookings);
   };
 
   const handleLogout = () => {
@@ -65,18 +99,18 @@ const ViewRegistrations = () => {
     if (!searchTerm) return registrations;
 
     return registrations.filter(reg => 
-      reg.userDetails.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      reg.userDetails.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      reg.userDetails.phone.includes(searchTerm)
+      reg.userDetails?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      reg.userDetails?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      reg.userDetails?.phone?.includes(searchTerm)
     );
   };
 
   const handleExportCSV = () => {
     // Create CSV content
-    let csvContent = "Booking ID,Name,Email,Phone,Tickets,Amount,Booking Date,Special Requests\n";
+    let csvContent = "Booking ID,Name,Email,Phone,Tickets,Amount,Booking Date\n";
     
     registrations.forEach(reg => {
-      csvContent += `${reg.bookingId},${reg.userDetails.name},${reg.userDetails.email},${reg.userDetails.phone},${reg.tickets},${reg.totalAmount},${new Date(reg.bookingDate).toLocaleDateString()},"${reg.userDetails.specialRequests || 'None'}"\n`;
+      csvContent += `${reg._id},${reg.userDetails?.name},${reg.userDetails?.email},${reg.userDetails?.phone},${reg.tickets},${reg.totalAmount},${new Date(reg.createdAt).toLocaleDateString()}\n`;
     });
 
     // Create and download file
@@ -91,15 +125,32 @@ const ViewRegistrations = () => {
 
   const filteredRegistrations = getFilteredRegistrations();
 
-  const totalTickets = registrations.reduce((sum, reg) => sum + reg.tickets, 0);
-  const totalRevenue = registrations.reduce((sum, reg) => sum + reg.totalAmount, 0);
+  const totalTickets = registrations.reduce((sum, reg) => sum + (reg.tickets || 0), 0);
+  const totalRevenue = registrations.reduce((sum, reg) => sum + (reg.totalAmount || 0), 0);
 
-  if (!event) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <Calendar className="h-16 w-16 text-purple-600 mx-auto mb-4 animate-pulse" />
-          <p className="text-gray-600">Loading...</p>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-purple-600 border-t-transparent"></div>
+          <p className="mt-4 text-gray-600">Loading registrations...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !event) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Calendar className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Error Loading Data</h2>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <Link to="/organizer-dashboard">
+            <button className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
+              Back to Dashboard
+            </button>
+          </Link>
         </div>
       </div>
     );
@@ -161,7 +212,9 @@ const ViewRegistrations = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div>
               <p className="text-gray-600 mb-1">Event Date</p>
-              <p className="text-lg font-bold text-gray-800">{event.date}</p>
+              <p className="text-lg font-bold text-gray-800">
+                {new Date(event.date).toLocaleDateString()}
+              </p>
             </div>
             <div>
               <p className="text-gray-600 mb-1">Location</p>
@@ -170,7 +223,7 @@ const ViewRegistrations = () => {
             <div>
               <p className="text-gray-600 mb-1">Ticket Price</p>
               <p className="text-lg font-bold text-purple-600">
-                {event.price === 0 || event.price === '0' ? 'Free' : `₹${event.price}`}
+                {event.price === 0 ? 'Free' : `₹${event.price}`}
               </p>
             </div>
             <div>
@@ -218,7 +271,7 @@ const ViewRegistrations = () => {
                 <span className="text-2xl">📊</span>
               </div>
               <span className="text-3xl font-bold text-gray-800">
-                {Math.round((totalTickets / event.totalSeats) * 100)}%
+                {event.totalSeats > 0 ? Math.round((totalTickets / event.totalSeats) * 100) : 0}%
               </span>
             </div>
             <h3 className="text-gray-600 font-medium">Capacity Filled</h3>
@@ -246,13 +299,15 @@ const ViewRegistrations = () => {
               </div>
 
               {/* Export Button */}
-              <button
-                onClick={handleExportCSV}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition flex items-center"
-              >
-                <Download className="h-5 w-5 mr-2" />
-                Export CSV
-              </button>
+              {registrations.length > 0 && (
+                <button
+                  onClick={handleExportCSV}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition flex items-center"
+                >
+                  <Download className="h-5 w-5 mr-2" />
+                  Export CSV
+                </button>
+              )}
             </div>
           </div>
 
@@ -295,38 +350,33 @@ const ViewRegistrations = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredRegistrations.map((reg, index) => (
-                    <tr key={index} className="hover:bg-gray-50 transition">
+                  {filteredRegistrations.map((reg) => (
+                    <tr key={reg._id} className="hover:bg-gray-50 transition">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="text-sm font-medium text-purple-600">
-                          {reg.bookingId}
+                          #{reg._id.slice(-8)}
                         </span>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center">
                           <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-blue-600 rounded-full flex items-center justify-center text-white font-bold mr-3">
-                            {reg.userDetails.name.charAt(0).toUpperCase()}
+                            {reg.userDetails?.name?.charAt(0).toUpperCase() || 'U'}
                           </div>
                           <div>
                             <div className="text-sm font-medium text-gray-900">
-                              {reg.userDetails.name}
+                              {reg.userDetails?.name || 'N/A'}
                             </div>
-                            {reg.userDetails.specialRequests && (
-                              <div className="text-xs text-gray-500">
-                                Note: {reg.userDetails.specialRequests}
-                              </div>
-                            )}
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm text-gray-900 flex items-center mb-1">
                           <Mail className="h-4 w-4 mr-2 text-gray-400" />
-                          {reg.userDetails.email}
+                          {reg.userDetails?.email || 'N/A'}
                         </div>
                         <div className="text-sm text-gray-900 flex items-center">
                           <Phone className="h-4 w-4 mr-2 text-gray-400" />
-                          {reg.userDetails.phone}
+                          {reg.userDetails?.phone || 'N/A'}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -340,7 +390,7 @@ const ViewRegistrations = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(reg.bookingDate).toLocaleDateString('en-IN', {
+                        {new Date(reg.createdAt).toLocaleDateString('en-IN', {
                           day: 'numeric',
                           month: 'short',
                           year: 'numeric'
