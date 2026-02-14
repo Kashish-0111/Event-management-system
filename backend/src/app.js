@@ -31,4 +31,7 @@ import bookingRoutes from './routes/booking.routes.js';
 
 app.use('/api/events', eventRoutes);
 app.use('/api/bookings', bookingRoutes);
+
+import analyticsRoutes from './routes/analytics.routes.js';
+app.use('/api/analytics', analyticsRoutes);
 export {app};

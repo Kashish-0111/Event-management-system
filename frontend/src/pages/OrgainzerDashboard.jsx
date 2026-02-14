@@ -1,7 +1,7 @@
 // src/pages/OrganizerDashboard.jsx
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Calendar, User, Ticket, Settings, LogOut, Home, Plus, Edit, Trash2, Eye, Users, DollarSign, TrendingUp } from 'lucide-react';
+import { Calendar, User, Ticket, Settings, LogOut, Home, Plus, Edit, Trash2, Eye, Users, DollarSign, TrendingUp,Sparkles,  Lightbulb, X } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/api';
 
 const OrganizerDashboard = () => {
@@ -16,6 +16,9 @@ const OrganizerDashboard = () => {
     totalAttendees: 0,
     activeEvents: 0
   });
+  const [aiInsights, setAiInsights] = useState(null);
+const [aiLoading, setAiLoading] = useState(false);
+const [showAiInsights, setShowAiInsights] = useState(false);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -150,6 +153,34 @@ const OrganizerDashboard = () => {
   const handleViewRegistrations = (eventId) => {
     navigate(`/view-registrations/${eventId}`);
   };
+  // fetch Ai insights
+  const fetchAIRecommendations = async () => {
+  try {
+    setAiLoading(true);
+    const token = localStorage.getItem('token');
+
+    const response = await fetch('http://localhost:8000/api/analytics/event-recommendations', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    const result = await response.json();
+    console.log('AI Response:', result);
+
+    if (result.success && result.data) {
+      setAiInsights(result.data);
+      setShowAiInsights(true);
+    } else {
+      alert(result.message || 'No insights available');
+    }
+  } catch (err) {
+    console.error('Error fetching AI insights:', err);
+    alert('Failed to load AI insights');
+  } finally {
+    setAiLoading(false);
+  }
+};
 
   // ✅ Loading state
   if (loading) {
@@ -276,6 +307,126 @@ const OrganizerDashboard = () => {
             </p>
           </div>
         </div>
+        {/* AI Insights Section - Add AFTER stats cards */}
+<div className="mb-8">
+  {!showAiInsights ? (
+    <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl p-8 text-white">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <div className="p-4 bg-white/20 rounded-lg">
+            <Sparkles className="h-8 w-8" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold mb-2">🤖 AI Event Advisor</h2>
+            <p className="text-purple-100">
+              Get personalized event recommendations based on your booking data
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={fetchAIRecommendations}
+          disabled={aiLoading || myEvents.length === 0}
+          className={`px-6 py-3 bg-white text-purple-600 rounded-lg font-semibold hover:bg-purple-50 transition flex items-center ${
+            aiLoading || myEvents.length === 0 ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
+        >
+          {aiLoading ? (
+            <>
+              <div className="animate-spin rounded-full h-5 w-5 border-2 border-purple-600 border-t-transparent mr-2"></div>
+              Analyzing...
+            </>
+          ) : (
+            <>
+              <Lightbulb className="h-5 w-5 mr-2" />
+              Get AI Insights
+            </>
+          )}
+        </button>
+      </div>
+      {myEvents.length === 0 && (
+        <p className="mt-4 text-sm text-purple-200">
+          💡 Create some events first to unlock AI recommendations
+        </p>
+      )}
+    </div>
+  ) : (
+    <div className="bg-white rounded-xl shadow-lg p-8 relative">
+      <button
+        onClick={() => setShowAiInsights(false)}
+        className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 transition"
+      >
+        <X className="h-6 w-6" />
+      </button>
+
+      <div className="flex items-center space-x-3 mb-6">
+        <div className="p-3 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg">
+          <Sparkles className="h-6 w-6 text-white" />
+        </div>
+        <div>
+          <h2 className="text-2xl font-bold text-gray-800">AI-Powered Insights</h2>
+          <p className="text-gray-600 text-sm">
+            Generated on {new Date(aiInsights?.generatedAt).toLocaleString()}
+          </p>
+        </div>
+      </div>
+
+      {/* Analytics Summary */}
+      {aiInsights?.analytics && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 p-4 bg-purple-50 rounded-lg">
+          <div>
+            <p className="text-sm text-gray-600">Total Events</p>
+            <p className="text-2xl font-bold text-purple-600">{aiInsights.analytics.totalEvents}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-600">Total Bookings</p>
+            <p className="text-2xl font-bold text-blue-600">{aiInsights.analytics.totalBookings}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-600">Avg Attendance</p>
+            <p className="text-2xl font-bold text-green-600">{aiInsights.analytics.avgAttendance}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-600">Total Revenue</p>
+            <p className="text-2xl font-bold text-indigo-600">₹{aiInsights.analytics.totalRevenue}</p>
+          </div>
+        </div>
+      )}
+
+      {/* AI Recommendations */}
+      <div className="prose max-w-none">
+        <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-6">
+          <div className="flex items-center space-x-2 mb-4">
+            <Lightbulb className="h-5 w-5 text-purple-600" />
+            <h3 className="text-lg font-bold text-gray-800 m-0">AI Recommendations</h3>
+          </div>
+          <div className="text-gray-700 whitespace-pre-line">
+            {aiInsights?.aiInsights}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-6 flex justify-end">
+        <button
+          onClick={fetchAIRecommendations}
+          disabled={aiLoading}
+          className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg font-semibold hover:from-purple-700 hover:to-blue-700 transition flex items-center"
+        >
+          {aiLoading ? (
+            <>
+              <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-2"></div>
+              Refreshing...
+            </>
+          ) : (
+            <>
+              <TrendingUp className="h-5 w-5 mr-2" />
+              Refresh Insights
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+  )}
+</div>
 
         {/* My Events Section */}
         <div className="bg-white rounded-xl shadow-md p-8">
