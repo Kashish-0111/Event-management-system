@@ -142,6 +142,12 @@ const createEvent = asyncHandler(async (req, res) => {
       imageUrl = cloudinaryResult.secure_url;
     }
   }
+
+  if (!imageUrl) {
+    imageUrl = 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=1200&h=600&fit=crop';
+    console.log('⚠️ Using default image');
+  }
+
   // Parse JSON strings back to arrays
   const highlightsArray = highlights ? JSON.parse(highlights) : [];
   const tagsArray = tags ? JSON.parse(tags) : [];

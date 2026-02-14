@@ -43,9 +43,9 @@ const eventSchema = new mongoose.Schema({
         type: Number,
         default: 0
     },
-    image: {
+    imageUrl: {
         type: String,  // Cloudinary URL
-        default: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&h=250&fit=crop'
+        // default: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&h=250&fit=crop'
     },
     highlights: {  // Added - Array of event highlights
         type: [String],
