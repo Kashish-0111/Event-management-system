@@ -154,12 +154,22 @@ const [showAiInsights, setShowAiInsights] = useState(false);
     navigate(`/view-registrations/${eventId}`);
   };
   // fetch Ai insights
-  const fetchAIRecommendations = async () => {
+// fetch Ai insights
+const fetchAIRecommendations = async () => {
   try {
     setAiLoading(true);
     const token = localStorage.getItem('token');
 
-    const response = await fetch('http://localhost:8000/api/analytics/event-recommendations', {
+    if (!token) {
+      alert('Please login first');
+      navigate('/login');
+      return;
+    }
+
+    console.log('Fetching AI recommendations...');
+
+    // ✅ Use production backend URL
+    const response = await fetch('https://eventhub-backend-jl8a.onrender.com/api/analytics/event-recommendations', {
       headers: {
         'Authorization': `Bearer ${token}`
       }
@@ -176,7 +186,7 @@ const [showAiInsights, setShowAiInsights] = useState(false);
     }
   } catch (err) {
     console.error('Error fetching AI insights:', err);
-    alert('Failed to load AI insights');
+    alert('Failed to load AI insights. Please try again.');
   } finally {
     setAiLoading(false);
   }

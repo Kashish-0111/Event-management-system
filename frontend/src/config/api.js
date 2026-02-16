@@ -20,6 +20,10 @@ export const API_ENDPOINTS = {
   MY_BOOKINGS: `${API_BASE_URL}/bookings/my-bookings`,
   EVENT_REGISTRATIONS: (eventId) => `${API_BASE_URL}/bookings/event/${eventId}`,
   CANCEL_BOOKING: (id) => `${API_BASE_URL}/bookings/${id}`,
+   
+  // Analytics
+  AI_RECOMMENDATIONS: `${API_BASE_URL}/analytics/event-recommendations`,  // ✅ Add this
+
 };
 
 // Helper function to get auth headers
