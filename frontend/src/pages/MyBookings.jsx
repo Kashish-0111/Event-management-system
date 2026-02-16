@@ -50,11 +50,13 @@ const MyBookings = () => {
       console.log('Bookings Response:', data);
 
       if (data.success && data.data) {
-        setBookings(data.data.bookings || data.data || []);
-      } else {
-        setBookings([]);
-      }
-    } catch (err) {
+    // ✅ Data is directly an array
+      const bookingsArray = Array.isArray(data.data) ? data.data : [];
+      console.log('Bookings array:', bookingsArray);
+      setBookings(bookingsArray);
+    } else {
+      setBookings([]);
+        } } catch (err) {
       console.error('Error loading bookings:', err);
       setError('Failed to load bookings');
       setBookings([]);
