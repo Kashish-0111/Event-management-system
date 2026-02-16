@@ -77,28 +77,87 @@ const EventBooking = () => {
     }
   };
 
-  const processPayment = () => {
-    // Demo payment processing
-    setTimeout(() => {
-      // Save booking to localStorage
+const processPayment = async () => {
+  try {
+    const token = localStorage.getItem('token');
+    
+    if (!token) {
+      alert('Please login first');
+      navigate('/login');
+      return;
+    }
+
+    console.log('=== PROCESSING PAYMENT ===');
+
+    const response = await fetch('https://eventhub-backend-jl8a.onrender.com/api/bookings', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        event: event._id,
+        tickets: ticketCount,
+        totalAmount: getTotalAmount(),
+        userDetails: {
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone
+        },
+        paymentMethod: paymentMethod
+      })
+    });
+
+    const data = await response.json();
+    console.log('Booking Response:', data);
+
+    if (data.success || response.ok) {
+      console.log('✅ Backend booking created');
+      
+      // Also save to localStorage for demo
       const booking = {
+        _id: data.data?._id || 'BK' + Date.now(),
         event: event,
         tickets: ticketCount,
         totalAmount: getTotalAmount(),
         userDetails: formData,
         paymentMethod: paymentMethod,
         bookingDate: new Date().toISOString(),
-        bookingId: 'BK' + Date.now()
+        createdAt: new Date().toISOString()
       };
 
-      // Save to user's bookings
       const existingBookings = JSON.parse(localStorage.getItem('myBookings') || '[]');
       existingBookings.push(booking);
       localStorage.setItem('myBookings', JSON.stringify(existingBookings));
 
+      alert('Payment successful! 🎉');
       setStep(3);
-    }, 2000);
-  };
+    } else {
+      alert(data.message || 'Booking failed');
+    }
+  } catch (error) {
+    console.error('Booking error:', error);
+    
+    // Fallback to localStorage for demo
+    const booking = {
+      _id: 'BK' + Date.now(),
+      event: event,
+      tickets: ticketCount,
+      totalAmount: getTotalAmount(),
+      userDetails: formData,
+      paymentMethod: paymentMethod,
+      bookingDate: new Date().toISOString(),
+      createdAt: new Date().toISOString()
+    };
+
+    const existingBookings = JSON.parse(localStorage.getItem('myBookings') || '[]');
+    existingBookings.push(booking);
+    localStorage.setItem('myBookings', JSON.stringify(existingBookings));
+    
+    alert('Booking saved (demo mode)');
+    setStep(3);
+  }
+};
 
   if (!event) {
     return null;
