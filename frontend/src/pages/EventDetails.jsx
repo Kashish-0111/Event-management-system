@@ -72,59 +72,76 @@ const EventDetails = () => {
   };
 
   // ✅ Handle booking/registration
-  const handleRegister = async () => {
-    console.log('=== REGISTRATION START ===');
+ const handleRegister = async () => {
+  console.log('=== REGISTRATION START ===');
   console.log('User object:', user);
   console.log('Event object:', event);
   console.log('Event._id:', event?._id);
   console.log('Event.price:', event?.price);
-  
-    if (!user) {
-      alert('Please login to register for this event');
-      navigate('/login');
-      return;
-    }
 
-      if (!event || !event._id) {
+  if (!user) {
+    alert('Please login to register for this event');
+    navigate('/login');
+    return;
+  }
+
+  if (!event || !event._id) {
     console.log('❌ Event data missing!');
     alert('Event data not loaded. Please refresh the page.');
     return;
   }
 
-    try {
-      setBookingLoading(true);
-      const token = localStorage.getItem('token');
+  // ✅ FREE EVENT - Direct booking (skip payment page)
+  if (event.price === 0) {
+    console.log('Free event - creating direct booking');
+    await createDirectBooking();
+    return;
+  }
 
-      if (!token) {
-        alert('Please login first');
-        navigate('/login');
-        return;
-      }
-      
+  // ✅ PAID EVENT - Navigate to payment page
+  console.log('Paid event - navigate to payment page');
+  navigate('/book-event', { 
+    state: { 
+      event: event
+    } 
+  });
+};
 
-      console.log('Booking event:', event._id);
+// ✅ Direct booking for free events
+const createDirectBooking = async () => {
+  try {
+    setBookingLoading(true);
+    const token = localStorage.getItem('token');
 
-      const response = await fetch(`${API_ENDPOINTS.GET_ALL_EVENTS.replace('/events', '/bookings')}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+    if (!token) {
+      alert('Please login first');
+      navigate('/login');
+      return;
+    }
+
+    console.log('Creating free event booking...');
+
+    const response = await fetch(`${API_ENDPOINTS.GET_ALL_EVENTS.replace('/events', '/bookings')}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        event: event._id,
+        tickets: 1,
+        totalAmount: 0,  // ✅ Free
+        userDetails: {
+          name: user.name,
+          email: user.email,
+          phone: user.phone || ''
         },
-        body: JSON.stringify({
-          event: event._id,
-          tickets: 1,
-          totalAmount: event.price,
-          userDetails: {
-            name: user.name,
-            email: user.email,
-            phone: user.phone || ''
-          },
-          paymentMethod: 'cash'
-        })
-      });
-       console.log('Response status:', response.status);
+        paymentMethod: 'free'  // ✅ Automatically set to 'free'
+      })
+    });
 
-    // ✅ Check for 401 specifically
+    console.log('Response status:', response.status);
+
     if (response.status === 401) {
       alert('Session expired. Please login again.');
       localStorage.clear();
@@ -132,35 +149,35 @@ const EventDetails = () => {
       return;
     }
 
-      const data = await response.json();
-      console.log('Booking Response:', data);
+    const data = await response.json();
+    console.log('Booking Response:', data);
 
-      if (data.success || response.ok) {
-        alert('Event registered successfully!');
-        navigate('/my-bookings');
-      } else {
-        alert(data.message || 'Failed to register for event');
-      }
-    } catch (err) {
-      console.error('Booking error:', err);
-      alert('Failed to register. Please try again.');
-    } finally {
-      setBookingLoading(false);
-    }
-  };
-
-  const handleShare = () => {
-    if (navigator.share) {
-      navigator.share({
-        title: event?.title,
-        text: event?.description,
-        url: window.location.href
-      });
+    if (data.success || response.ok) {
+      alert('Free event registered successfully! 🎉');
+      navigate('/my-bookings');
     } else {
-      navigator.clipboard.writeText(window.location.href);
-      alert('Event link copied to clipboard!');
+      alert(data.message || 'Failed to register for event');
     }
-  };
+  } catch (err) {
+    console.error('Booking error:', err);
+    alert('Failed to register. Please try again.');
+  } finally {
+    setBookingLoading(false);
+  }
+};
+
+const handleShare = () => {
+  if (navigator.share) {
+    navigator.share({
+      title: event?.title,
+      text: event?.description,
+      url: window.location.href
+    });
+  } else {
+    navigator.clipboard.writeText(window.location.href);
+    alert('Event link copied to clipboard!');
+  }
+};
 
   // ✅ Format date helper
   const formatDate = (dateString) => {
